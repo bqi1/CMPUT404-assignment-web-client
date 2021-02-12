@@ -41,12 +41,17 @@ class HTTPClient(object):
         return None
 
     def get_code(self, data):
-        return None
+        try:
+            return int(data.splitlines()[0].split(" ")[1])
+        except ValueError:
+            return 500
 
     def get_headers(self,data):
+        # print("get headers")
         return None
 
     def get_body(self, data):
+        # print("get body")
         return None
     
     def sendall(self, data):
@@ -70,13 +75,59 @@ class HTTPClient(object):
     def GET(self, url, args=None):
         code = 500
         body = ""
+        split_values = urllib.parse.urlsplit(url)
+        port = 80 if split_values.port == None else split_values.port
+        hostname = split_values.hostname
+        path = "/" if split_values[2] == "" else split_values[2]
+        query = f"?{split_values[3]}" if split_values[3] != "" else ""
+        try:
+            self.connect(hostname,port)
+            self.sendall(f"GET {path}{query} HTTP/1.1\r\nHost: {hostname}:{port}\r\nConnection: close\r\n\r\n")
+            body = self.recvall(self.socket)
+            print(body) # ADD THIS ONE
+            self.close()
+            code = self.get_code(body)
+        except Exception as e:
+            print(e)
+            return HTTPResponse(code, body)
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
+        # print("POST")
         code = 500
         body = ""
+        split_values = urllib.parse.urlsplit(url)
+        port = 80 if split_values.port == None else split_values.port
+        hostname = split_values.hostname
+        path = "/" if split_values[2] == "" else split_values[2]
+        query = f"?{split_values[3]}" if split_values[3] != "" else ""
+        processed_args = ""
+        if args != None:
+            processed_args = f"\r\n{self.process_args(args)}"
+        content_length = len(processed_args.encode("utf-8"))
+        try:
+            self.connect(hostname,port)
+            # print(f"HERE.\nPOST {path}{query} HTTP/1.1\r\nHost: {hostname}:{port}\r\nContent-Type: application/x-www-form-urlencoded; charset=UTF-8\r\nContent-Length: {content_length}\r\nAccept: application/json\r\nConnection: close\r\n\r\n{processed_args}\r\nDONE.")
+            self.sendall(f"POST {path}{query} HTTP/1.1\r\nHost: {hostname}:{port}\r\nContent-Type: application/x-www-form-urlencoded; charset=UTF-8\r\nContent-Length: {content_length}\r\nAccept: application/json\r\nConnection: close\r\n\r\n{processed_args}\r\n")
+            body = self.recvall(self.socket)
+            print(body) # ADD THIS ONE
+            # print(f"MY BODY@!!!\n{body}\nokie\n")
+            self.close()
+            code = self.get_code(body)
+        except Exception as e:
+            print(e)
+            return HTTPResponse(code, body)
         return HTTPResponse(code, body)
-
+    def process_args(self,args): # Turn args(if any) into content for POST
+        content = ""
+        for key in args.keys():
+            # print("hi")
+            # print(key,args[key])
+            spaced_key = key.replace(" ","%20")
+            spaced_value = args[key].replace(" ","%20")
+            content+=f"{spaced_key}={spaced_value}&"
+        # print(f"final result: {content[:-1]}")
+        return content[:-1]
     def command(self, url, command="GET", args=None):
         if (command == "POST"):
             return self.POST( url, args )
