@@ -47,12 +47,10 @@ class HTTPClient(object):
             return 500
 
     def get_headers(self,data):
-        # print("get headers")
         return None
 
     def get_body(self, data):
-        # print("get body")
-        return None
+        return data.split("\r\n\r\n")[1]
     
     def sendall(self, data):
         self.socket.sendall(data.encode('utf-8'))
@@ -84,16 +82,15 @@ class HTTPClient(object):
             self.connect(hostname,port)
             self.sendall(f"GET {path}{query} HTTP/1.1\r\nHost: {hostname}:{port}\r\nConnection: close\r\n\r\n")
             body = self.recvall(self.socket)
-            print(body) # ADD THIS ONE
+            print(body)
             self.close()
             code = self.get_code(body)
+            body = self.get_body(body)
         except Exception as e:
-            print(e)
             return HTTPResponse(code, body)
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
-        # print("POST")
         code = 500
         body = ""
         split_values = urllib.parse.urlsplit(url)
@@ -103,30 +100,27 @@ class HTTPClient(object):
         query = f"?{split_values[3]}" if split_values[3] != "" else ""
         processed_args = ""
         if args != None:
-            processed_args = f"\r\n{self.process_args(args)}"
-        content_length = len(processed_args.encode("utf-8"))
+            processed_args = f"{self.process_args(args)}"
+        content_length = len(processed_args)
         try:
             self.connect(hostname,port)
-            # print(f"HERE.\nPOST {path}{query} HTTP/1.1\r\nHost: {hostname}:{port}\r\nContent-Type: application/x-www-form-urlencoded; charset=UTF-8\r\nContent-Length: {content_length}\r\nAccept: application/json\r\nConnection: close\r\n\r\n{processed_args}\r\nDONE.")
-            self.sendall(f"POST {path}{query} HTTP/1.1\r\nHost: {hostname}:{port}\r\nContent-Type: application/x-www-form-urlencoded; charset=UTF-8\r\nContent-Length: {content_length}\r\nAccept: application/json\r\nConnection: close\r\n\r\n{processed_args}\r\n")
+            self.sendall(f"POST {path}{query} HTTP/1.1\r\nHost: {hostname}:{port}\r\nContent-Type: application/x-www-form-urlencoded; charset=UTF-8\r\nContent-Length: {content_length}\r\nAccept: application/json\r\nConnection: close\r\n\r\n{processed_args}")
             body = self.recvall(self.socket)
             print(body) # ADD THIS ONE
-            # print(f"MY BODY@!!!\n{body}\nokie\n")
             self.close()
             code = self.get_code(body)
+            body = self.get_body(body)
+
         except Exception as e:
-            print(e)
             return HTTPResponse(code, body)
         return HTTPResponse(code, body)
     def process_args(self,args): # Turn args(if any) into content for POST
         content = ""
         for key in args.keys():
-            # print("hi")
-            # print(key,args[key])
+
             spaced_key = key.replace(" ","%20")
             spaced_value = args[key].replace(" ","%20")
             content+=f"{spaced_key}={spaced_value}&"
-        # print(f"final result: {content[:-1]}")
         return content[:-1]
     def command(self, url, command="GET", args=None):
         if (command == "POST"):
